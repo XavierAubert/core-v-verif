@@ -266,6 +266,7 @@ module uvmt_cv32e40p_imperas_dv_wrap
         rvviTrace  rvvi // RVVI SystemVerilog Interface
     );
 
+    trace2log       idv_trace2log(rvvi);
     localparam bit F_REG = FPU & !ZFINX;
     trace2api #(
         .CMP_PC      (1),
@@ -277,7 +278,6 @@ module uvmt_cv32e40p_imperas_dv_wrap
     )
     trace2api(rvvi);
 
-    trace2log       idv_trace2log(rvvi);
     trace2cov       idv_trace2cov(rvvi);
 
     string info_tag = "ImperasDV_wrap";
