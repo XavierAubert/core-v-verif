@@ -701,10 +701,6 @@ class cv32e40p_instr extends riscv_instr;
     super.update_imm_str();
   endfunction
 
-  virtual function string get_post_incr_str();
-    return (is_post_incr) ? "!" : "";
-  endfunction : get_post_incr_str
-
   // `include "isa/riscv_instr_cov.svh"
 
 endclass
