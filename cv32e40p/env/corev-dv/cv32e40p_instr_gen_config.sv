@@ -59,6 +59,9 @@ class cv32e40p_instr_gen_config extends riscv_instr_gen_config;
   rand riscv_reg_t  str_rs1;
   rand riscv_reg_t  str_rs3;
 
+  // keep some compressed regsiters out from num_zfinx_reserved_reg list
+  rand riscv_reg_t  reserved_compress_gpr[];
+
   constraint ss_dbg_high_iteration_cnt_c {
     ss_dbg_high_iteration_cnt dist {0 := 60, 1 := 40};
   }
@@ -124,18 +127,25 @@ class cv32e40p_instr_gen_config extends riscv_instr_gen_config;
   constraint num_zfinx_reserved_reg_c {
     if (RV32ZFINX inside {riscv_instr_pkg::supported_isa}) {
       num_zfinx_reserved_reg inside {[5:10]};
+      reserved_compress_gpr.size() == 4; // keep 4 out of 8 compressed regs
+      unique {reserved_compress_gpr};
+      foreach (reserved_compress_gpr[i]) {
+        reserved_compress_gpr[i] inside {[S0:A5]};
+      }
     } else {
       num_zfinx_reserved_reg == 0;
+      reserved_compress_gpr.size() == 0;
     }
   }
 
   constraint zfinx_reserved_gpr_c {
     solve num_zfinx_reserved_reg, dp, str_rs1, str_rs3 before zfinx_reserved_gpr;
+    solve reserved_compress_gpr before zfinx_reserved_gpr;
     if (RV32ZFINX inside {riscv_instr_pkg::supported_isa}) {
       zfinx_reserved_gpr.size() == num_zfinx_reserved_reg;
       unique {zfinx_reserved_gpr};
       foreach(zfinx_reserved_gpr[i]) {
-        !(zfinx_reserved_gpr[i] inside {ZERO, RA, SP, GP, TP});
+        !(zfinx_reserved_gpr[i] inside {ZERO, RA, SP, GP, TP, reserved_compress_gpr});
         (zfinx_reserved_gpr[i] != dp);
         (zfinx_reserved_gpr[i] != str_rs1);
         (zfinx_reserved_gpr[i] != str_rs3);
