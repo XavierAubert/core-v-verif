@@ -511,6 +511,7 @@ module uvmt_cv32e40p_tb;
     // IMPERAS DV
     `ifndef FORMAL
     `ifdef USE_ISS
+      `define RVFI_2_RVVI_ENABLE
       uvmt_cv32e40p_imperas_dv_wrap #(
         .FPU                    (CORE_PARAM_FPU),
         .ZFINX                  (CORE_PARAM_ZFINX),
@@ -531,6 +532,17 @@ module uvmt_cv32e40p_tb;
 
      // Specify time format for simulation (units_number, precision_number, suffix_string, minimum_field_width)
      $timeformat(-9, 3, " ns", 8);
+
+
+    // Pass rvvi_if handle to cov_model
+    `ifdef RVFI_2_RVVI_ENABLE
+    uvm_config_db#(virtual rvviTrace#(.NHART(1), .RETIRE(1)))::set(
+      .cntxt(null),
+      .inst_name("uvm_test_top.env.cov_model*"),
+      .field_name("rvvi_vif"),
+      .value(rvvi_if)
+    );
+    `endif
 
      // Add interfaces handles to uvm_config_db
      uvm_config_db#(virtual uvma_debug_if                    )::set(.cntxt(null), .inst_name("*.env.debug_agent"),            .field_name("vif"),              .value(debug_if)                                        );

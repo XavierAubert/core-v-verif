@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+${IMPERAS_HOME}/ImpPublic/source/host/rvvi/rvviTrace.sv
++incdir+${IMPERAS_HOME}/ImpPublic/source/host/rvvi/
 
 // Directories
 +incdir+${DV_UVME_PATH}

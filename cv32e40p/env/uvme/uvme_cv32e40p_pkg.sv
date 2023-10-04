@@ -27,6 +27,7 @@
 `include "uvma_clknrst_macros.sv"
 `include "uvme_cv32e40p_macros.sv"
 
+`include "rvviTrace.sv"
 
  /**
  * Encapsulates all the types needed for an UVM environment capable of driving/
@@ -45,6 +46,7 @@ package uvme_cv32e40p_pkg;
    import uvma_obi_memory_pkg ::*;
    import uvma_rvfi_pkg       ::*;
    import uvml_mem_pkg        ::*;
+   import cv32e40p_tracer_pkg ::*;
 
    // Forward decls
    typedef class uvme_cv32e40p_vsqr_c;
@@ -81,6 +83,7 @@ package uvme_cv32e40p_pkg;
    // Environment components
    `include "uvma_cv32e40p_core_cntrl_drv.sv"
    `include "uvma_cv32e40p_core_cntrl_agent.sv"
+   `include "uvme_rv32x_hwloop_covg.sv"
    `include "uvme_interrupt_covg.sv"
    `include "uvme_debug_covg.sv"
    `include "uvme_rv32isa_covg.sv"
