@@ -576,9 +576,9 @@ class uvme_rv32x_hwloop_covg #(
 
   function new(string name="uvme_rv32x_hwloop_covg", uvm_component parent=null);
     super.new(name, parent);
-    cg_csr_hwloop = new();      cg_csr_hwloop.set_inst_name($sformatf("cg_csr_hwloop"));
-    `CG_FEATURES_OF_HWLOOP(0) = new(); cg_csr_hwloop.set_inst_name($sformatf("cg_features_of_hwloop_0"));
-    `CG_FEATURES_OF_HWLOOP(1) = new(); cg_csr_hwloop.set_inst_name($sformatf("cg_features_of_hwloop_1"));
+    cg_csr_hwloop = new();             cg_csr_hwloop.set_inst_name($sformatf("cg_csr_hwloop"));
+    `CG_FEATURES_OF_HWLOOP(0) = new(); cg_features_of_hwloop_0.set_inst_name($sformatf("cg_features_of_hwloop_0"));
+    `CG_FEATURES_OF_HWLOOP(1) = new(); cg_features_of_hwloop_1.set_inst_name($sformatf("cg_features_of_hwloop_1"));
   endfunction: new
 
   function void build_phase(uvm_phase phase);
