@@ -15,8 +15,6 @@
 // limitations under the License.
 // 
 
-
-
 // This file specifies all interfaces used by the CV32E40P test bench (uvmt_cv32e40p_tb).
 // Most interfaces support tasks to allow control by the ENV or test cases.
 
@@ -333,5 +331,67 @@ interface uvmt_cv32e40p_debug_cov_assert_if
   endclocking : mon_cb
 
 endinterface : uvmt_cv32e40p_debug_cov_assert_if
+
+
+// core-v-verif simplify rvvi for coverage collection purpose 
+  `define DEF_CSR_PORTS(CSR_NAME) \
+  input logic [(XLEN-1):0] csr_``CSR_NAME``_rmask, \
+  input logic [(XLEN-1):0] csr_``CSR_NAME``_wmask, \
+  input logic [(XLEN-1):0] csr_``CSR_NAME``_rdata, \
+  input logic [(XLEN-1):0] csr_``CSR_NAME``_wdata,
+
+  `define ASSIGN_CSR_N_WB(CSR_ADDR, CSR_NAME) \
+    bit csr_``CSR_NAME``_wb; \
+    wire [31:0] csr_``CSR_NAME``_w; \
+    wire [31:0] csr_``CSR_NAME``_r; \
+    assign csr_``CSR_NAME``_w = csr_``CSR_NAME``_wdata &   csr_``CSR_NAME``_wmask; \
+    assign csr_``CSR_NAME``_r = csr_``CSR_NAME``_rdata & ~(csr_``CSR_NAME``_wmask); \
+    assign csr[``CSR_ADDR]    = csr_``CSR_NAME``_w | csr_``CSR_NAME``_r; \
+    assign csr_wb[``CSR_ADDR] = csr_``CSR_NAME``_wb; \
+    always @(csr[``CSR_ADDR]) begin \
+        csr_``CSR_NAME``_wb = 1; \
+    end \
+    always @(posedge clk) begin \
+        if (valid && csr_``CSR_NAME``_wb) begin \
+            csr_``CSR_NAME``_wb = 0; \
+        end \
+    end
+
+
+interface uvmt_cv32e40p_rvvi_if #(
+  parameter int ILEN    = 32,
+  parameter int XLEN    = 32,
+  parameter int CSR_NUM = 4096
+) (
+    
+  input                               clk,
+  input                               valid,
+  input logic [(ILEN-1):0]            insn,
+  input                               trap,
+  input logic [(XLEN-1):0]            pc_rdata,
+  // Currently only define specific csrs for current usage
+  `DEF_CSR_PORTS(lpstart0)
+  `DEF_CSR_PORTS(lpend0)
+  `DEF_CSR_PORTS(lpcount0)
+  `DEF_CSR_PORTS(lpstart1)
+  `DEF_CSR_PORTS(lpend1)
+  `DEF_CSR_PORTS(lpcount1)
+
+  input dummy
+ 
+);
+
+  wire [CSR_NUM][(XLEN-1):0]   csr;
+  wire [CSR_NUM]               csr_wb;
+
+  // can be expanded. Currently only define for current usage
+  `ASSIGN_CSR_N_WB(`CSR_LPSTART0_ADDR, lpstart0)
+  `ASSIGN_CSR_N_WB(`CSR_LPEND0_ADDR, lpend0)
+  `ASSIGN_CSR_N_WB(`CSR_LPCOUNT0_ADDR, lpcount0)
+  `ASSIGN_CSR_N_WB(`CSR_LPSTART1_ADDR, lpstart1)
+  `ASSIGN_CSR_N_WB(`CSR_LPEND1_ADDR, lpend1)
+  `ASSIGN_CSR_N_WB(`CSR_LPCOUNT1_ADDR, lpcount1)
+    
+endinterface
 
 `endif // __UVMT_CV32E40P_TB_IFS_SV__

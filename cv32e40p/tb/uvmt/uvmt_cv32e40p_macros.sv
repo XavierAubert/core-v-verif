@@ -49,4 +49,12 @@
                                                 .field_name({"csr_", `"csr_name`", "_vif0"}), \
                                                 .value(dut_wrap.cv32e40p_tb_wrapper_i.rvfi_csr_``csr_name``_if_0_i));
 
+  
+`define PORTMAP_CSR_RVFI_2_RVVI(CSR_NAME) \
+  .csr_``CSR_NAME``_rmask  (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_csr_``CSR_NAME``_rmask), \
+  .csr_``CSR_NAME``_wmask  (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_csr_``CSR_NAME``_wmask), \
+  .csr_``CSR_NAME``_rdata  (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_csr_``CSR_NAME``_rdata), \
+  .csr_``CSR_NAME``_wdata  (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_csr_``CSR_NAME``_wdata),
+
+
 `endif // __UVMT_CV32E40P_MACROS_SV__
