@@ -81,7 +81,9 @@ class uvme_rv32x_hwloop_covg #(
   `define CG_CSR_HWLOOP(LOOP_IDX) cg_csr_hwloop_``LOOP_IDX``
   `define DEF_CG_CSR_HWLOOP(LOOP_IDX) covergroup cg_csr_hwloop_``LOOP_IDX with function sample(s_csr_hwloop csr_hwloop); \
     option.per_instance         = 1; \
+    `ifdef MODEL_TECH \
     option.get_inst_coverage    = 1; \
+    `endif \
     type_option.merge_instances = 1; \
     cp_lpstart_``LOOP_IDX : coverpoint (csr_hwloop.lp_start[``LOOP_IDX``]) iff (csr_hwloop.lp_start_wb[``LOOP_IDX``] && csr_hwloop.lp_end_wb[``LOOP_IDX``] && csr_hwloop.lp_count_wb[``LOOP_IDX``]) { \
       bins lpstart_range_0      = {[32'h0000_03FC : 32'h0000_0004]}; \
@@ -123,7 +125,9 @@ class uvme_rv32x_hwloop_covg #(
   `define CG_FEATURES_OF_HWLOOP(LOOP_IDX) cg_features_of_hwloop_``LOOP_IDX``
   `define DEF_CG_FEATURES_OF_HWLOOP(LOOP_IDX) covergroup cg_features_of_hwloop_``LOOP_IDX with function sample(s_hwloop_stat hwloop_stat, bit [31:0] insn); \
     option.per_instance         = 1; \
+    `ifdef MODEL_TECH \
     option.get_inst_coverage    = 1; \
+    `endif \
     type_option.merge_instances = 1; \
     cp_hwloop_type : coverpoint (hwloop_stat.hwloop_type) iff (hwloop_stat.execute_instr_in_hwloop[``LOOP_IDX``]) { \
       bins single_hwloop      = {SINGLE}; \
@@ -658,9 +662,12 @@ class uvme_rv32x_hwloop_covg #(
           // assign execute_instr_in_hwloop, track_lp_count, hwloop_type \
           hwloop_stat_``TYPE``.execute_instr_in_hwloop[i] = 1'b1; \
           hwloop_stat_``TYPE``.track_lp_count[i]          = hwloop_stat_``TYPE``.hwloop_csr.lp_count[i]; \
-          if (hwloop_stat_``TYPE``.execute_instr_in_hwloop      == '{1,1}) hwloop_stat_``TYPE``.hwloop_type = NESTED; \
-          else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{1,0}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
-          else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{0,1}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          // if (hwloop_stat_``TYPE``.execute_instr_in_hwloop      == '{1,1}) hwloop_stat_``TYPE``.hwloop_type = NESTED; \
+          // else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{1,0}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          // else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{0,1}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          if      (hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && hwloop_stat_``TYPE``.execute_instr_in_hwloop[1])  hwloop_stat_``TYPE``.hwloop_type = NESTED; \
+          else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && !hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          else if (!hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
         end \
       end \
     end // UPDATE_HWLOOP_STAT \

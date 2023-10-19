@@ -360,8 +360,7 @@ endinterface : uvmt_cv32e40p_debug_cov_assert_if
 
 interface uvmt_cv32e40p_rvvi_if #(
   parameter int ILEN    = 32,
-  parameter int XLEN    = 32,
-  parameter int CSR_NUM = 4096
+  parameter int XLEN    = 32
 ) (
     
   input                               clk,
@@ -381,8 +380,8 @@ interface uvmt_cv32e40p_rvvi_if #(
  
 );
 
-  wire [CSR_NUM][(XLEN-1):0]   csr;
-  wire [CSR_NUM]               csr_wb;
+  wire [4095:0][(XLEN-1):0]   csr;
+  wire [4095:0]               csr_wb;
 
   // can be expanded. Currently only define for current usage
   `ASSIGN_CSR_N_WB(`CSR_LPSTART0_ADDR, lpstart0)
