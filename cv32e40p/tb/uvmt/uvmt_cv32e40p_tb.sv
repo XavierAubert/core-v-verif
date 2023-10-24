@@ -515,12 +515,14 @@ module uvmt_cv32e40p_tb;
     .insn                   (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_insn[uvme_cv32e40p_pkg::ILEN*0+:uvme_cv32e40p_pkg::ILEN]),
     .trap                   (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_trap.trap),
     .pc_rdata               (dut_wrap.cv32e40p_tb_wrapper_i.rvfi_i.rvfi_pc_rdata),
+    .interrupt_if           (interrupt_if),
     `PORTMAP_CSR_RVFI_2_RVVI(lpstart0)
     `PORTMAP_CSR_RVFI_2_RVVI(lpend0)
     `PORTMAP_CSR_RVFI_2_RVVI(lpcount0)
     `PORTMAP_CSR_RVFI_2_RVVI(lpstart1)
     `PORTMAP_CSR_RVFI_2_RVVI(lpend1)
     `PORTMAP_CSR_RVFI_2_RVVI(lpcount1)
+    `PORTMAP_CSR_RVFI_2_RVVI(mie)
     .dummy                  ()
   );
 

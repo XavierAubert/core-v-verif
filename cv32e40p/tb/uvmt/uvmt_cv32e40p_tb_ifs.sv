@@ -368,6 +368,9 @@ interface uvmt_cv32e40p_rvvi_if #(
   input logic [(ILEN-1):0]            insn,
   input                               trap,
   input logic [(XLEN-1):0]            pc_rdata,
+
+  uvma_interrupt_if                   interrupt_if,
+
   // Currently only define specific csrs for current usage
   `DEF_CSR_PORTS(lpstart0)
   `DEF_CSR_PORTS(lpend0)
@@ -375,6 +378,7 @@ interface uvmt_cv32e40p_rvvi_if #(
   `DEF_CSR_PORTS(lpstart1)
   `DEF_CSR_PORTS(lpend1)
   `DEF_CSR_PORTS(lpcount1)
+  `DEF_CSR_PORTS(mie)
 
   input dummy
  
@@ -382,6 +386,9 @@ interface uvmt_cv32e40p_rvvi_if #(
 
   wire [4095:0][(XLEN-1):0]   csr;
   wire [4095:0]               csr_wb;
+  wire [(XLEN-1):0]           valid_irq;
+
+  assign valid_irq = interrupt_if.irq & csr[`CSR_MIE_ADDR];
 
   // can be expanded. Currently only define for current usage
   `ASSIGN_CSR_N_WB(`CSR_LPSTART0_ADDR, lpstart0)
@@ -390,6 +397,7 @@ interface uvmt_cv32e40p_rvvi_if #(
   `ASSIGN_CSR_N_WB(`CSR_LPSTART1_ADDR, lpstart1)
   `ASSIGN_CSR_N_WB(`CSR_LPEND1_ADDR, lpend1)
   `ASSIGN_CSR_N_WB(`CSR_LPCOUNT1_ADDR, lpcount1)
+  `ASSIGN_CSR_N_WB(`CSR_MIE_ADDR, mie)
     
 endinterface
 

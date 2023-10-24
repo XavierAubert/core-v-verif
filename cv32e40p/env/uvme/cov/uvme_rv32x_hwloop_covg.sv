@@ -24,9 +24,9 @@
 `ifndef UVME_RV32X_HWLOOP_COVG
 `define UVME_RV32X_HWLOOP_COVG
 
-class uvme_rv32x_hwloop_covg #(
-  parameter int NHART   = 1,
-  parameter int RETIRE  = 1
+class uvme_rv32x_hwloop_covg # (
+  parameter int ILEN    = 32,
+  parameter int XLEN    = 32
 ) extends uvm_component;
 
   localparam SKIP_RVVI_INIT_VALID_CNT = 1;
@@ -43,19 +43,20 @@ class uvme_rv32x_hwloop_covg #(
   typedef enum bit [1:0] {NULL_TYPE=0, SINGLE, NESTED}  hwloop_type_t;
   typedef enum bit [1:0] {NULL_SETUP=0, SHORT, LONG}    hwloop_setup_t;
   typedef struct {
-    bit [31:0] lp_start     [HWLOOP_NB];
-    bit [31:0] lp_end       [HWLOOP_NB];
-    bit [31:0] lp_count     [HWLOOP_NB];
-    bit        lp_start_wb  [HWLOOP_NB];
-    bit        lp_end_wb    [HWLOOP_NB];
-    bit        lp_count_wb  [HWLOOP_NB];
+    bit [(XLEN-1):0] lp_start     [HWLOOP_NB];
+    bit [(XLEN-1):0] lp_end       [HWLOOP_NB];
+    bit [(XLEN-1):0] lp_count     [HWLOOP_NB];
+    bit              lp_start_wb  [HWLOOP_NB];
+    bit              lp_end_wb    [HWLOOP_NB];
+    bit              lp_count_wb  [HWLOOP_NB];
   } s_csr_hwloop;
   typedef struct {
-    hwloop_type_t   hwloop_type;
-    hwloop_setup_t  hwloop_setup [HWLOOP_NB];
-    s_csr_hwloop    hwloop_csr;
-    bit             execute_instr_in_hwloop [HWLOOP_NB];
-    int             track_lp_count [HWLOOP_NB];
+    hwloop_type_t     hwloop_type;
+    hwloop_setup_t    hwloop_setup [HWLOOP_NB];
+    s_csr_hwloop      hwloop_csr;
+    bit               execute_instr_in_hwloop [HWLOOP_NB];
+    int               track_lp_count [HWLOOP_NB];
+    // bit [(XLEN-1):0]  irq[HWLOOP_NB]; // track dut irq event
   } s_hwloop_stat;
 
   local s_csr_hwloop  csr_hwloop_init   = '{default:0};
@@ -65,16 +66,20 @@ class uvme_rv32x_hwloop_covg #(
   local s_hwloop_stat hwloop_stat_main  = '{default:0, hwloop_type:NULL_TYPE, hwloop_setup:'{default:NULL_SETUP}};
   local s_hwloop_stat hwloop_stat_sub   = '{default:0, hwloop_type:NULL_TYPE, hwloop_setup:'{default:NULL_SETUP}};
 
-  local bit [31:0]    insn_list_in_hwloop_main     [HWLOOP_NB][$];
-  local bit [31:0]    insn_list_in_hwloop_sub      [HWLOOP_NB][$];
-  local bit           done_insn_list_capture_main  [HWLOOP_NB] = '{default:0};
-  local bit           done_insn_list_capture_sub   [HWLOOP_NB] = '{default:0};
+  local bit [(ILEN-1):0]    insn_list_in_hwloop_main     [HWLOOP_NB][$];
+  local bit [(ILEN-1):0]    insn_list_in_hwloop_sub      [HWLOOP_NB][$];
+  local bit [(XLEN-1):0]    irq_vect_main                [HWLOOP_NB][$];
+  local bit [(XLEN-1):0]    irq_vect_sub                 [HWLOOP_NB][$];
+  local bit                 done_insn_list_capture_main  [HWLOOP_NB] = '{default:0};
+  local bit                 done_insn_list_capture_sub   [HWLOOP_NB] = '{default:0};
 
-  virtual uvmt_cv32e40p_rvvi_if #( .NHART(NHART), .RETIRE(RETIRE)) cv32e40p_rvvi_vif;
+  virtual uvmt_cv32e40p_rvvi_if #( .XLEN(XLEN), .ILEN(ILEN)) cv32e40p_rvvi_vif;
   string  _header = "XPULPV2_HWLOOP_COV";
   bit     in_nested_loop0 = 0;
-  bit     is_ebreak = 0, is_ecall = 0, is_illegal;
+  bit     is_ebreak = 0, is_ecall = 0, is_illegal = 0, is_irq = 0;
   bit     enter_hwloop_sub = 0;
+
+  // bit [HWLOOP_NB-1:0] current_in_hwloop = hwloop_stat_main.execute_instr_in_hwloop & hwloop_stat_sub.execute_instr_in_hwloop; // fixme
 
   // COVERGROUPS DEFINE HERE - START
 
@@ -89,13 +94,13 @@ class uvme_rv32x_hwloop_covg #(
       bins lpstart_range_0      = {[32'h0000_03FC : 32'h0000_0004]}; \
       bins lpstart_range_1      = {[32'h0000_0FFC : 32'h0000_0400]}; \
       bins lpstart_range_2      = {[32'h0000_FFFC : 32'h0000_1000]}; \
-      illegal_bins  others_grp  = default; // higher range is not covered now due to limited generated codespace (amend if needed) \
+      // illegal_bins  others_grp  = default; // higher range is not covered now due to limited generated codespace (amend if needed) \
     } \
     cp_lpend_``LOOP_IDX : coverpoint (csr_hwloop.lp_end[``LOOP_IDX``]) iff (csr_hwloop.lp_start_wb[``LOOP_IDX``] && csr_hwloop.lp_end_wb[``LOOP_IDX``] && csr_hwloop.lp_count_wb[``LOOP_IDX``]) { \
       bins lpend_range_0        = {[32'h0000_03FC : 32'h0000_0004]}; \
       bins lpend_range_1        = {[32'h0000_0FFC : 32'h0000_0400]}; \
       bins lpend_range_2        = {[32'h0000_FFFC : 32'h0000_1000]}; \
-      illegal_bins  others_grp  = default; // higher range is not covered now due to limited generated codespace (amend if needed) \
+      // illegal_bins  others_grp  = default; // higher range is not covered now due to limited generated codespace (amend if needed) \
     } \
     cp_lpcount_``LOOP_IDX : coverpoint (csr_hwloop.lp_count[``LOOP_IDX``]) iff (csr_hwloop.lp_start_wb[``LOOP_IDX``] && csr_hwloop.lp_end_wb[``LOOP_IDX``] && csr_hwloop.lp_count_wb[``LOOP_IDX``]) { \
       // bins lpcount_zero           = {32'h0}; // valid CSR writes to sample should be when lpcount{0/1}.value != 0 \
@@ -103,7 +108,7 @@ class uvme_rv32x_hwloop_covg #(
       bins lpcount_range_low_2    = {[32'h0000_1FFF : 32'h0000_0100]}; // 256 <= x < 4K \
       // bins lpcount_range_middle   = {[32'h00FF_FFFF : 32'h0000_1000]}; // 4K <= x < 16M \
       // bins lpcount_range_high     = {[32'hFFFF_FFFF : 32'h0100_0000]}; // 16M <= x < 4G \
-      illegal_bins other_range    = default; \
+      // illegal_bins other_range    = default; \
     } \
     ccp_lpstart_0_lpend_lpcount_``LOOP_IDX : cross cp_lpstart_``LOOP_IDX``, cp_lpend_``LOOP_IDX``, cp_lpcount_``LOOP_IDX`` { \
       ignore_bins ignore__lpstart_range_1 = binsof (cp_lpstart_``LOOP_IDX``) intersect {[32'h0000_0FFC : 32'h0000_0400]}; \
@@ -123,7 +128,7 @@ class uvme_rv32x_hwloop_covg #(
   endgroup : cg_csr_hwloop_``LOOP_IDX
 
   `define CG_FEATURES_OF_HWLOOP(LOOP_IDX) cg_features_of_hwloop_``LOOP_IDX``
-  `define DEF_CG_FEATURES_OF_HWLOOP(LOOP_IDX) covergroup cg_features_of_hwloop_``LOOP_IDX with function sample(s_hwloop_stat hwloop_stat, bit [31:0] insn); \
+  `define DEF_CG_FEATURES_OF_HWLOOP(LOOP_IDX) covergroup cg_features_of_hwloop_``LOOP_IDX with function sample(s_hwloop_stat hwloop_stat, bit [31:0] insn, bit [31:0] irq); \
     option.per_instance         = 1; \
     `ifdef MODEL_TECH \
     option.get_inst_coverage    = 1; \
@@ -138,6 +143,16 @@ class uvme_rv32x_hwloop_covg #(
       bins short_hwloop_setup = {SHORT}; \
       bins long_hwloop_setup  = {LONG}; \
       illegal_bins invalid    = default; \
+    } \
+    cp_hwloop_irq : coverpoint (irq) iff (hwloop_stat.execute_instr_in_hwloop[``LOOP_IDX``]) { \
+      bins vec_irq[]             = {32'h0000_0001, 32'h0000_0002, 32'h0000_0004, 32'h0000_0008, \
+                                    32'h0000_0010, 32'h0000_0020, 32'h0000_0040, 32'h0000_0080, \
+                                    32'h0000_0100, 32'h0000_0200, 32'h0000_0400, 32'h0000_0800, \
+                                    32'h0000_1000, 32'h0000_2000, 32'h0000_4000, 32'h0000_8000, \
+                                    32'h0001_0000, 32'h0002_0000, 32'h0004_0000, 32'h0008_0000, \
+                                    32'h0010_0000, 32'h0020_0000, 32'h0040_0000, 32'h0080_0000, \
+                                    32'h0100_0000, 32'h0200_0000, 32'h0400_0000, 32'h0800_0000, \
+                                    32'h1000_0000, 32'h2000_0000, 32'h4000_0000, 32'h8000_0000}; \
     } \
     // refer to cv32e40p_tracer_pkg.sv for instructions list \
     // note: hwloop setup custom instructions are not allow in hwloop_0 (manual exclusion needed) \
@@ -569,6 +584,7 @@ class uvme_rv32x_hwloop_covg #(
       illegal_bins other_instr = default; \
     } \
     ccp_hwloop_type_setup_insn_list : cross cp_hwloop_type, cp_hwloop_setup, cp_insn_list_in_hwloop; \
+    // ccp_hwloop_type_setup_irq       : cross cp_hwloop_type, cp_hwloop_setup, cp_hwloop_irq; \
   endgroup : cg_features_of_hwloop_``LOOP_IDX``
 
   `DEF_CG_CSR_HWLOOP(0)
@@ -620,15 +636,15 @@ class uvme_rv32x_hwloop_covg #(
       end \
       if (csr_hwloop_``TYPE``.lp_start_wb[i] && csr_hwloop_``TYPE``.lp_end_wb[i] && csr_hwloop_``TYPE``.lp_count_wb[i]) begin : SAMPLE_HWLOP_CSR \
         if (csr_hwloop_``TYPE``.lp_count[i] != 0) begin : SAMPLE_IF_TRUE \
-          `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - sampling csr_hwloop is %p", i, csr_hwloop_``TYPE``), UVM_DEBUG); \
+          `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - sampling csr_hwloop is %p", i, csr_hwloop_``TYPE``), UVM_NONE); \
           unique case (i) \
             0:  begin \
                 `CG_CSR_HWLOOP(0).sample(csr_hwloop_``TYPE``); \
-                `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(0).get_inst_coverage(), `CG_CSR_HWLOOP(0).get_coverage), UVM_DEBUG); \
+                `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(0).get_inst_coverage(), `CG_CSR_HWLOOP(0).get_coverage), UVM_NONE); \
                 end \
             1:  begin \
                 `CG_CSR_HWLOOP(1).sample(csr_hwloop_``TYPE``); \
-                `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(1).get_inst_coverage(), `CG_CSR_HWLOOP(1).get_coverage), UVM_DEBUG); \
+                `uvm_info(_header, $sformatf("DEBUG - cg_csr_hwloop[%0d] - get_inst_coverage = %.2f, get_coverage = %.2f", i, `CG_CSR_HWLOOP(1).get_inst_coverage(), `CG_CSR_HWLOOP(1).get_coverage), UVM_NONE); \
                 end \
           endcase \
           // update hwloop_stat \
@@ -658,16 +674,15 @@ class uvme_rv32x_hwloop_covg #(
   `define DEF_CHECK_N_SAMPLE_HWLOOP(TYPE) task check_n_sample_hwloop_``TYPE``(); \
     for (int i=0; i<HWLOOP_NB; i++) begin : UPDATE_HWLOOP_STAT \
       if (hwloop_stat_``TYPE``.hwloop_csr.lp_count[i] != 0) begin \
-        if (is_pc_equal_lpstart(hwloop_stat_``TYPE``.hwloop_csr, i) && !hwloop_stat_``TYPE``.execute_instr_in_hwloop[i]) begin \
+        if (is_pc_equal_lpstart(hwloop_stat_``TYPE``.hwloop_csr, i) && hwloop_stat_``TYPE``.track_lp_count[i] == 0) begin \
           // assign execute_instr_in_hwloop, track_lp_count, hwloop_type \
           hwloop_stat_``TYPE``.execute_instr_in_hwloop[i] = 1'b1; \
           hwloop_stat_``TYPE``.track_lp_count[i]          = hwloop_stat_``TYPE``.hwloop_csr.lp_count[i]; \
-          // if (hwloop_stat_``TYPE``.execute_instr_in_hwloop      == '{1,1}) hwloop_stat_``TYPE``.hwloop_type = NESTED; \
-          // else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{1,0}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
-          // else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop == '{0,1}) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
-          if      (hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && hwloop_stat_``TYPE``.execute_instr_in_hwloop[1])  hwloop_stat_``TYPE``.hwloop_type = NESTED; \
-          else if (hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && !hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
-          else if (!hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          // if (!hwloop_stat_``TYPE``.execute_instr_in_hwloop[i]) begin \
+            if      ( hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] &&  hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = NESTED; \
+            else if ( hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] && !hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+            else if (!hwloop_stat_``TYPE``.execute_instr_in_hwloop[0] &&  hwloop_stat_``TYPE``.execute_instr_in_hwloop[1]) hwloop_stat_``TYPE``.hwloop_type = SINGLE; \
+          // end \
         end \
       end \
     end // UPDATE_HWLOOP_STAT \
@@ -684,8 +699,9 @@ class uvme_rv32x_hwloop_covg #(
                   assert(hwloop_stat_``TYPE``.track_lp_count[i] >= 0); \
                 end \
                 if (hwloop_stat_``TYPE``.track_lp_count[i] != hwloop_stat_``TYPE``.hwloop_csr.lp_count[i]) done_insn_list_capture_``TYPE``[i] = 1; \
+                // if (cv32e40p_rvvi_vif.valid_irq != 0) irq_vect_``TYPE``[i].push_back(cv32e40p_rvvi_vif.valid_irq); \
               end \
-          1 : begin // in nested should not capture insns within hwloop0  \
+          1 : begin // in nested, skip when executing hwloop0  \
                 if (hwloop_stat_``TYPE``.hwloop_type == NESTED && hwloop_stat_``TYPE``.track_lp_count[0] != 0) begin \
                   in_nested_loop0 = 1; continue; \
                 end \
@@ -701,33 +717,38 @@ class uvme_rv32x_hwloop_covg #(
                   assert(hwloop_stat_``TYPE``.track_lp_count[i] >= 0); \
                 end \
                 if (hwloop_stat_``TYPE``.track_lp_count[i] != hwloop_stat_``TYPE``.hwloop_csr.lp_count[i]) done_insn_list_capture_``TYPE``[i] = 1; \
+                // if (cv32e40p_rvvi_vif.valid_irq != 0) irq_vect_``TYPE``[i].push_back(cv32e40p_rvvi_vif.valid_irq); \
               end \
         endcase  \
       end \
     end // COLLECT_INSTR \
     if ( \
-      (hwloop_stat_``TYPE``.hwloop_type == NESTED && done_insn_list_capture_``TYPE``[1]) || \
-      (hwloop_stat_``TYPE``.hwloop_type == SINGLE && done_insn_list_capture_``TYPE``[1]) || \
-      (hwloop_stat_``TYPE``.hwloop_type == SINGLE && done_insn_list_capture_``TYPE``[0]) \
-    ) begin : SAMPLE \
+      (hwloop_stat_``TYPE``.hwloop_type == NESTED && done_insn_list_capture_``TYPE``[1] && hwloop_stat_``TYPE``.track_lp_count[1] == 0) || \
+      (hwloop_stat_``TYPE``.hwloop_type == SINGLE && done_insn_list_capture_``TYPE``[1] && hwloop_stat_``TYPE``.track_lp_count[1] == 0) || \
+      (hwloop_stat_``TYPE``.hwloop_type == SINGLE && done_insn_list_capture_``TYPE``[0] && hwloop_stat_``TYPE``.track_lp_count[0] == 0) \
+    ) begin : SAMPLE_END_OF_HWLOOPS \
       for (int i=0; i<HWLOOP_NB; i++) begin \
         while (insn_list_in_hwloop_``TYPE``[i].size() != 0) begin \
-          bit [31:0] insn_item; \
+          bit [31:0] insn_item, irq_item; \
           insn_item = insn_list_in_hwloop_``TYPE``[i].pop_front(); \
-          // $display("BMAK_DEBUG [time: %t] - COLLECT_INSTR - idx:%0d - insn_item is %8h", $realtime, i, insn_item); \
+          if (irq_vect_``TYPE``[i].size() != 0) begin \
+            irq_item = irq_vect_``TYPE``[i].pop_front(); \
+            `uvm_info(_header, $sformatf("DEBUG - COLLECT_IRQ - idx:%0d - irq_item is %8h", i, irq_item), UVM_NONE); \
+          end \
+          `uvm_info(_header, $sformatf("DEBUG - COLLECT_INSTR - idx:%0d - insn_item is %8h", i, insn_item), UVM_NONE); \
           unique case (i) \
             0:  begin \
-                  `CG_FEATURES_OF_HWLOOP(0).sample(hwloop_stat_``TYPE``, insn_item); \
+                  `CG_FEATURES_OF_HWLOOP(0).sample(hwloop_stat_``TYPE``, insn_item, irq_item); \
                 end \
             1:  begin  \
-                  `CG_FEATURES_OF_HWLOOP(1).sample(hwloop_stat_``TYPE``, insn_item); \
+                  `CG_FEATURES_OF_HWLOOP(1).sample(hwloop_stat_``TYPE``, insn_item, irq_item); \
                 end \
           endcase \
         end \
         done_insn_list_capture_``TYPE``[i]  = 0; \
-      end // for \
+      end \
       hwloop_stat_``TYPE`` = hwloop_stat_init; \
-    end // SAMPLE \
+    end // SAMPLE_END_OF_HWLOOPS \
   endtask : check_n_sample_hwloop_``TYPE``
 
   `DEF_CHECK_N_SAMPLE_HWLOOP(main)
@@ -739,13 +760,33 @@ class uvme_rv32x_hwloop_covg #(
       forever begin : TRAP_HANDLING
         wait (cv32e40p_rvvi_vif.clk && cv32e40p_rvvi_vif.valid && cv32e40p_rvvi_vif.trap);
         case (cv32e40p_rvvi_vif.insn)
-          INSN_EBREAK, INSN_CEBREAK : begin is_ebreak = 1;  `uvm_info(_header, $sformatf("DEBUG - Trap[EBREAK]"), UVM_DEBUG); end
-          INSN_ECALL  : begin is_ecall = 1;   `uvm_info(_header, $sformatf("DEBUG - Trap[ECALL]"), UVM_DEBUG); end
-          default     : begin is_illegal = 1; `uvm_info(_header, $sformatf("DEBUG - Trap[ILLEGAL]"), UVM_DEBUG); end
+          INSN_EBREAK, INSN_CEBREAK : begin is_ebreak = 1;  `uvm_info(_header, $sformatf("DEBUG - Trap[EBREAK]"), UVM_NONE); end
+          INSN_ECALL  : begin is_ecall = 1;                 `uvm_info(_header, $sformatf("DEBUG - Trap[ECALL]"), UVM_NONE); end
+          default     : begin is_illegal = 1;               `uvm_info(_header, $sformatf("DEBUG - Trap[ILLEGAL]"), UVM_NONE); end
         endcase
         wait (cv32e40p_rvvi_vif.clk && cv32e40p_rvvi_vif.valid && cv32e40p_rvvi_vif.insn == INSN_MRET);
         is_ebreak = 0; is_ecall = 0; is_illegal = 0;
-        `uvm_info(_header, $sformatf("DEBUG - Exit Trap"), UVM_DEBUG);
+        `uvm_info(_header, $sformatf("DEBUG - Exit Trap"), UVM_NONE);
+      end
+      forever begin : IRQ_REQ_WITHIN_HWLOOPS
+        wait (hwloop_stat_main.execute_instr_in_hwloop[0] | hwloop_stat_main.execute_instr_in_hwloop[1] | 
+              hwloop_stat_sub.execute_instr_in_hwloop[0]  | hwloop_stat_sub.execute_instr_in_hwloop[1]);
+        wait (cv32e40p_rvvi_vif.valid_irq != 0 && !is_irq); // async
+        if (hwloop_stat_main.execute_instr_in_hwloop[0] && hwloop_stat_main.track_lp_count[0] !=0)                      irq_vect_main[0].push_back(cv32e40p_rvvi_vif.valid_irq);
+        if (hwloop_stat_main.execute_instr_in_hwloop[1] && hwloop_stat_main.track_lp_count[1] !=0 && !in_nested_loop0)  irq_vect_main[1].push_back(cv32e40p_rvvi_vif.valid_irq);
+        if (hwloop_stat_sub.execute_instr_in_hwloop[0]  && hwloop_stat_sub.track_lp_count[0] !=0)                       irq_vect_sub[0].push_back(cv32e40p_rvvi_vif.valid_irq);
+        if (hwloop_stat_sub.execute_instr_in_hwloop[1]  && hwloop_stat_sub.track_lp_count[1] !=0 && !in_nested_loop0)   irq_vect_sub[1].push_back(cv32e40p_rvvi_vif.valid_irq);
+        `uvm_info(_header, $sformatf("DEBUG - Async Dut IRQ Req detected"), UVM_NONE);
+        is_irq = 1;
+      end
+      forever begin : IRQ_EXIT_WITHIN_HWLOOPS
+        wait (hwloop_stat_main.execute_instr_in_hwloop[0] | hwloop_stat_main.execute_instr_in_hwloop[1] | 
+              hwloop_stat_sub.execute_instr_in_hwloop[0]  | hwloop_stat_sub.execute_instr_in_hwloop[1]);
+        @(posedge cv32e40p_rvvi_vif.clk);
+        if (is_irq && cv32e40p_rvvi_vif.valid && cv32e40p_rvvi_vif.insn == INSN_MRET) begin
+          `uvm_info(_header, $sformatf("DEBUG - Async Dut IRQ Exit"), UVM_NONE);
+          is_irq = 0;
+        end
       end
     join_none
     forever begin
@@ -757,6 +798,10 @@ class uvme_rv32x_hwloop_covg #(
           if (!(is_ebreak || is_ecall || is_illegal)) enter_hwloop_sub = 0;
         end
         else begin : IS_MAIN
+          if (is_irq && cv32e40p_rvvi_vif.insn[6:0] == OPCODE_JAL) begin
+            wait (!is_irq);
+            continue;
+          end
           `CHECK_N_SAMPLE_CSR_HWLOOP(main);
           `CHECK_N_SAMPLE_HWLOOP(main);
           if (is_ebreak || is_ecall || is_illegal) enter_hwloop_sub = 1;
@@ -764,6 +809,16 @@ class uvme_rv32x_hwloop_covg #(
       end // VALID_DETECTED
     end // forever
   endtask : run_phase
+
+  function void final_phase(uvm_phase phase);
+    super.final_phase(phase);
+    if (hwloop_stat_main == hwloop_stat_init && hwloop_stat_sub == hwloop_stat_init) begin
+      `uvm_info(_header, $sformatf("DEBUG - No prematured hwloops when test done"), UVM_NONE);
+    end
+    else begin
+      `uvm_error(_header, $sformatf("Detected prematured hwloops when test done. Please revise/debug."));
+    end
+  endfunction : final_phase
 
   function bit is_pc_equal_lpstart(s_csr_hwloop csr_hwloop, int idx=0);
     if (cv32e40p_rvvi_vif.pc_rdata == csr_hwloop.lp_start[idx]) return 1;
