@@ -44,13 +44,13 @@ package uvme_cv32e40p_pkg;
    import uvma_obi_memory_pkg ::*;
    import uvma_rvfi_pkg       ::*;
    import uvml_mem_pkg        ::*;
-   import cv32e40p_tracer_pkg ::*;
 
    // Forward decls
    typedef class uvme_cv32e40p_vsqr_c;
 
    // Constants / Structs / Enums
    `include "uvme_cv32e40p_constants.sv"
+   `include "uvme_cv32e40p_param_all_insn.sv"
    `include "uvme_cv32e40p_tdefs.sv"
 
    // Objects
