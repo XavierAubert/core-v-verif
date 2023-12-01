@@ -34,11 +34,6 @@ tests:
     build: uvmt_cv32e40p
     dir: cv32e40p/sim/uvmt
     cmd: make gen_corev-dv test TEST=corev_rand_fp_instr_sanity_test CFG_PLUSARGS="+UVM_TIMEOUT=1000000"
-    num: 1
-    skip_sim:
-      - pulp_fpu_zfinx
-      - pulp_fpu_zfinx_1cyclat
-      - pulp_fpu_zfinx_2cyclat
 
   corev_rand_fp_instr_test:
     build: uvmt_cv32e40p
@@ -54,4 +49,10 @@ tests:
     build: uvmt_cv32e40p
     dir: cv32e40p/sim/uvmt
     cmd: make test TEST=fpu_bugs_test CFG_PLUSARGS="+UVM_TIMEOUT=1000000"
+    num: 1
+
+  fpu_mstatus_test:
+    build: uvmt_cv32e40p
+    dir: cv32e40p/sim/uvmt
+    cmd: make test TEST=fpu_mstatus_test CFG_PLUSARGS="+UVM_TIMEOUT=3000000"
     num: 1
