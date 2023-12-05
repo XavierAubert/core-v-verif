@@ -43,14 +43,18 @@ VSIM_LOCAL_MODELSIMINI  ?= YES
 VOPT_CODE_COV_DUT_ONLY  ?= YES
 VSIM_USER_FLAGS         ?=
 ifeq ($(call IS_YES,$(VOPT_CODE_COV_DUT_ONLY)),YES)
-VOPT_COV                ?= +cover=bcsetf+$(RTLSRC_VLOG_CORE_TOP).
+VOPT_COV_FLAGS          ?= +cover=bcsetf+$(RTLSRC_VLOG_CORE_TOP).
 else
-VOPT_COV                ?= +cover=setf+$(RTLSRC_VLOG_TB_TOP).
+VOPT_COV_FLAGS          ?= +cover=setf+$(RTLSRC_VLOG_TB_TOP).
 endif
-VSIM_COV                ?= -coverage +uvm_set_config_int=uvm_test_top,cov_model_enabled,1
+VSIM_COV_FLAGS          ?= -coverage +uvm_set_config_int=uvm_test_top,cov_model_enabled,1
+VLOG_COV_FLAGS          ?=
 VOPT_WAVES_ADV_DEBUG    ?= -designfile design.bin
 VSIM_WAVES_ADV_DEBUG    ?= -qwavedb=+signal+class+classmemory+assertion+ignoretxntime+msgmode=both
 VSIM_WAVES_DO           ?= $(VSIM_SCRIPT_DIR)/waves.tcl
+VLOG_COV ?=
+VOPT_COV ?=
+VSIM_COV ?=
 
 # Common QUIET flag defaults to -quiet unless VERBOSE is set
 ifeq ($(call IS_YES,$(VERBOSE)),YES)
@@ -213,16 +217,16 @@ run: 					VSIM_FLAGS += -modelsimini modelsim.ini
 endif
 
 ################################################################################
-# code coverage and functional coverage enablement
+# code coverage and functional coverage enablement (only for test target )
 ifeq ($(call IS_YES,$(COV)),YES)
-VOPT_FLAGS  += $(VOPT_COV)
-VSIM_FLAGS  += $(VSIM_COV)
+VOPT_COV += ${VOPT_COV_FLAGS}
 # VSIM_FLAGS  += -do 'set TEST ${VSIM_TEST}; set TEST_CONFIG $(CFG); set TEST_SEED $(RNDSEED); source $(VSIM_SCRIPT_DIR)/cov.tcl'
 ifneq ($(TEST_CFG_FILE_NAME),)
-VSIM_FLAGS  += -do 'setenv TEST_COV ${TEST}; setenv TEST_CONFIG_COV $(CFG); setenv TEST_CFG_FILE_COV _$(TEST_CFG_FILE_NAME); setenv TEST_SEED_COV $(RNDSEED); source $(VSIM_SCRIPT_DIR)/cov.tcl'
+VSIM_COV_FLAGS  += -do 'setenv TEST_COV ${TEST}; setenv TEST_CONFIG_COV $(CFG); setenv TEST_CFG_FILE_COV _$(TEST_CFG_FILE_NAME); setenv TEST_SEED_COV $(RNDSEED); source $(VSIM_SCRIPT_DIR)/cov.tcl'
 else
-VSIM_FLAGS  += -do 'setenv TEST_COV ${TEST}; setenv TEST_CONFIG_COV $(CFG); setenv TEST_CFG_FILE_COV ""; setenv TEST_SEED_COV $(RNDSEED); source $(VSIM_SCRIPT_DIR)/cov.tcl'
+VSIM_COV_FLAGS  += -do 'setenv TEST_COV ${TEST}; setenv TEST_CONFIG_COV $(CFG); setenv TEST_CFG_FILE_COV ""; setenv TEST_SEED_COV $(RNDSEED); source $(VSIM_SCRIPT_DIR)/cov.tcl'
 endif
+VSIM_COV += ${VSIM_COV_FLAGS}
 endif
 
 ################################################################################
@@ -260,7 +264,7 @@ COV_FLAGS =
 COV_REPORT = cov_report
 COV_MERGE_TARGET =
 COV_MERGE_FIND  = find $(SIM_CFG_RESULTS) -type f -name "*.ucdb" -exec echo {} > $(VSIM_COV_MERGE_DIR)/ucdb.list \;
-COV_MERGE_FLAGS = merge -testassociated -verbose -64 -out merged.ucdb -inputs ucdb.list
+COV_MERGE_FLAGS = merge -verbose -64 -out merged.ucdb -inputs ucdb.list
 
 ifeq ($(call IS_YES,$(MERGE)),YES)
 COV_DIR=$(VSIM_COV_MERGE_DIR)
@@ -591,6 +595,7 @@ vlog: lib
 		$(VLOG) \
 			-work $(VWORK) \
 			-l vlog.log \
+			$(VLOG_COV) \
 			$(VLOG_FLAGS) \
 			$(CFG_COMPILE_FLAGS) \
 			+incdir+$(DV_UVME_PATH) \
@@ -612,6 +617,7 @@ opt: vlog
 		$(VOPT) \
 			-work $(VWORK) \
 			-l vopt.log \
+			$(VOPT_COV) \
 			$(VOPT_FLAGS) \
 			$(RTLSRC_VLOG_TB_TOP) \
 			-o $(RTLSRC_VOPT_TB_TOP)
@@ -635,6 +641,7 @@ run: $(VSIM_RUN_PREREQ) gen_ovpsim_ic
 		$(VSIM) \
 			-work $(VWORK) \
 			$(VSIM_WAVES_FLAGS) \
+			$(VSIM_COV) \
 			$(VSIM_FLAGS) \
 			-l vsim-$(VSIM_TEST).log \
 			$(DPILIB_VSIM_OPT) \
