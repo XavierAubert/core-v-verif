@@ -32,7 +32,7 @@ Under the heading `Link`, the name shown corresponds to the filename of the vpla
 
 | Category            | Feature        | VPlan Status | Review Status | Comment | Link |
 |---------------------|----------------|--------------|---------------|---------|------|
-| **Base Instruction Set** | RV32IMC + F + Zfinx + Zifencei | v2-formal-new | Complete |      | [CV32E40Pv2_Formal_VerificationPlans.xlsx](https://github.com/openhwgroup/core-v-verif/blob/cv32e40p/dev/cv32e40p/docs/VerifPlans/RISC-V_ISA_Formal/CV32E40Pv2_Formal_VerificationPlans.xlsx) |
+| **Base Instruction Set** | RV32IMC + F + Zfinx + Zifencei | v2-formal-new | Complete |      | [CV32E40Pv2_Formal_VerificationPlans.xlsx](https://github.com/openhwgroup/core-v-verif/tree/cv32e40p_v1.6.0/cv32e40p/docs/VerifPlans/RISC-V_ISA_Formal/CV32E40Pv2_Formal_VerificationPlans.xlsx) |
 | **Interrupts**      | CLINT | v1-updated   | Complete | Addition of missing XPULP / F / Zfinx interrupts | [CV32E40Pv2_interrupts.xlsx](https://github.com/openhwgroup/core-v-verif/blob/cv32e40p/dev/cv32e40p/docs/VerifPlans/Simulation/interrupts/CV32E40Pv2_interrupts.xlsx "Interrupts Vplan")|
 | **Debug & Trace**   | Debug          | v1-reused | Complete | Missing XPULP-specific debug are in a separate vplan | [CV32E40Pv2_debug.xlsx](https://github.com/openhwgroup/core-v-verif/blob/cv32e40p/dev/cv32e40p/docs/VerifPlans/Simulation/debug-trace/CV32E40Pv2_debug.xlsx "Debug Vplan")|
 | **Privileged Spec** | CSRs / Zicsr | v2-formal-new | Complete |      | [CV32E40Pv2_Formal_VerificationPlans.xlsx](https://github.com/openhwgroup/core-v-verif/blob/cv32e40p/dev/cv32e40p/docs/VerifPlans/RISC-V_ISA_Formal/CV32E40Pv2_Formal_VerificationPlans.xlsx) |
